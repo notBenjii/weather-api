@@ -1,0 +1,13 @@
+# PyCharm / IDE settings
+.idea/
+
+# Python cache & bytecode
+__pycache__/
+*.pyc
+
+# Virtual environments
+venv/
+.venv/
+
+# API keys
+keys.py
