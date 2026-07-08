@@ -1,7 +1,7 @@
 import requests
 from keys import API_KEY
 
-def get_weather(city: str):
+def get_weather(city: str) -> dict | None:
     url = f"https://api.weatherapi.com/v1/current.json?key={API_KEY}&q={city}"
 
     try:
@@ -9,11 +9,9 @@ def get_weather(city: str):
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
         print(f"Could not fetch weather data: {e}")
-        exit()
-
-    if response.status_code != 200:
-        error_msg = response.json().get("error", {}).get("message", "Unknown error")
-        print(f"Error: {error_msg}")
-        exit()
+        if e.response is not None:
+            error_msg = e.response.json().get("error", {}).get("message", "Unknown error")
+            print(f"Error: {error_msg}")
+        return None
 
     return response.json()

@@ -11,10 +11,8 @@ cache = WeatherCache()
 data = cache.get(city)
 if data is None:
     data = get_weather(city)
-    cache.set(city, data)
-    print(f"City {city} is not in the cache.")
-else:
-    print(f"City {city} is in cache.")
+    if data is not None:
+        cache.set(city, data)
 
 date = data["current"]["last_updated"]
 temp = data["current"]["temp_c"]
