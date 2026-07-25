@@ -3,6 +3,7 @@ import customtkinter as ctk
 from cache import WeatherCache
 from request import get_weather
 
+searching = False
 cache = WeatherCache()
 
 app = ctk.CTk()
@@ -31,12 +32,15 @@ def search_weather(event = None):
     if not city:
         city_entry.configure(border_color="red")
         city_error_label.configure(text="Please enter a valid city name.")
+        search_button.configure(state="normal")
         return
 
     city_entry.configure(border_color=default_border_color)
     city_error_label.configure(text="")
 
-    result_label.configure(text="Loading...")
+    global searching
+    searching = True
+    app.after(400, animate_loading , "")
 
     thread = threading.Thread(target=fetch_weather_data, args=(city,))
     thread.start()
@@ -51,6 +55,9 @@ def fetch_weather_data(city):
     app.after(0, update_result_label, data)
 
 def update_result_label(data):
+    global searching
+    searching = False
+
     if data is not None:
         date = data["current"]["last_updated"]
         temp = data["current"]["temp_c"]
@@ -73,6 +80,19 @@ def update_result_label(data):
         result_label.configure(text="Something went wrong...")
 
     search_button.configure(state="normal")
+
+def animate_loading(dots = ""):
+    if not searching:
+        return
+
+    result_label.configure(text=f"Loading{dots}")
+
+    if dots == "...":
+        new_dots = ""
+    else:
+        new_dots = dots + "."
+
+    app.after(400, animate_loading, new_dots)
 
 search_button = ctk.CTkButton(app, text="Search", command=search_weather)
 search_button.pack(pady=10)
