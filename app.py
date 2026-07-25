@@ -1,3 +1,4 @@
+import threading
 import customtkinter as ctk
 from cache import WeatherCache
 from request import get_weather
@@ -20,7 +21,11 @@ default_border_color = city_entry.cget("border_color")
 city_error_label = ctk.CTkLabel(app, text="", font=("Arial", 12), text_color="red")
 city_error_label.pack(pady=(0, 10))
 
-def search_weather():
+def search_weather(event = None):
+    if search_button.cget("state") == "disabled":
+        return
+
+    search_button.configure(state="disabled")
     city = city_entry.get().strip().lower()
 
     if not city:
@@ -31,12 +36,21 @@ def search_weather():
     city_entry.configure(border_color=default_border_color)
     city_error_label.configure(text="")
 
+    result_label.configure(text="Loading...")
+
+    thread = threading.Thread(target=fetch_weather_data, args=(city,))
+    thread.start()
+
+def fetch_weather_data(city):
     data = cache.get(city)
     if data is None:
         data = get_weather(city)
         if data is not None:
             cache.set(city, data)
 
+    app.after(0, update_result_label, data)
+
+def update_result_label(data):
     if data is not None:
         date = data["current"]["last_updated"]
         temp = data["current"]["temp_c"]
@@ -46,17 +60,19 @@ def search_weather():
 
         result_label.configure(text=f"""
         Last updated: {date}
-        
+
         Temperature: {temp}°C
-        
+
         Condition: {condition}
-        
+
         Wind: {wind} kph
-        
+
         Cloud coverage: {cloud_percentage}%
         """)
     else:
         result_label.configure(text="Something went wrong...")
+
+    search_button.configure(state="normal")
 
 search_button = ctk.CTkButton(app, text="Search", command=search_weather)
 search_button.pack(pady=10)
@@ -64,5 +80,6 @@ search_button.pack(pady=10)
 result_label = ctk.CTkLabel(app, text="", font=("Arial", 16), justify="left")
 result_label.pack(pady=10)
 
+city_entry.bind("<Return>", search_weather)
 app.mainloop()
 
