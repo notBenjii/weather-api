@@ -3,103 +3,107 @@ import customtkinter as ctk
 from cache import WeatherCache
 from request import get_weather
 
-searching = False
-cache = WeatherCache()
+class WeatherApp:
+    def __init__(self):
+        self.searching = False
+        self.cache = WeatherCache()
 
-app = ctk.CTk()
-app.title("Weather App")
-app.geometry("700x450")
-app.resizable(False, False)
-ctk.set_appearance_mode("dark")
+        self.app = ctk.CTk()
+        self.app.title("Weather App")
+        self.app.geometry("700x450")
+        self.app.resizable(False, False)
+        ctk.set_appearance_mode("dark")
 
-title_label = ctk.CTkLabel(app, text="Weather App", font=("Arial", 30))
-title_label.pack(pady=20)
+        self._build_widgets()
 
-city_entry = ctk.CTkEntry(app, placeholder_text="Enter city name")
-city_entry.pack(pady=(10, 0))
-default_border_color = city_entry.cget("border_color")
+    def _build_widgets(self):
+        self.title_label = ctk.CTkLabel(self.app, text="Weather App", font=("Arial", 30))
+        self.title_label.pack(pady=20)
 
-city_error_label = ctk.CTkLabel(app, text="", font=("Arial", 12), text_color="red")
-city_error_label.pack(pady=(0, 10))
+        self.city_entry = ctk.CTkEntry(self.app, placeholder_text="Enter city name")
+        self.city_entry.pack(pady=(10, 0))
+        self.default_border_color = self.city_entry.cget("border_color")
 
-def search_weather(event = None):
-    if search_button.cget("state") == "disabled":
-        return
+        self.city_error_label = ctk.CTkLabel(self.app, text="", font=("Arial", 12), text_color="red")
+        self.city_error_label.pack(pady=(0, 10))
 
-    search_button.configure(state="disabled")
-    city = city_entry.get().strip().lower()
+        self.search_button = ctk.CTkButton(self.app, text="Search", command=self.search_weather)
+        self.search_button.pack(pady=10)
 
-    if not city:
-        city_entry.configure(border_color="red")
-        city_error_label.configure(text="Please enter a valid city name.")
-        search_button.configure(state="normal")
-        return
+        self.result_label = ctk.CTkLabel(self.app, text="", font=("Arial", 16), justify="left")
+        self.result_label.pack(pady=10)
 
-    city_entry.configure(border_color=default_border_color)
-    city_error_label.configure(text="")
+        self.city_entry.bind("<Return>", self.search_weather)
 
-    global searching
-    searching = True
-    app.after(400, animate_loading , "")
+    def run(self):
+        self.app.mainloop()
 
-    thread = threading.Thread(target=fetch_weather_data, args=(city,))
-    thread.start()
+    def search_weather(self, event=None):
+        if self.search_button.cget("state") == "disabled":
+            return
 
-def fetch_weather_data(city):
-    data = cache.get(city)
-    if data is None:
-        data = get_weather(city)
+        self.search_button.configure(state="disabled")
+        city = self.city_entry.get().strip().lower()
+
+        if not city:
+            self.city_entry.configure(border_color="red")
+            self.city_error_label.configure(text="Please enter a valid city name.")
+            self.search_button.configure(state="normal")
+            return
+
+        self.city_entry.configure(border_color=self.default_border_color)
+        self.city_error_label.configure(text="")
+
+        self.searching = True
+        self.app.after(400, self.animate_loading, "")
+
+        thread = threading.Thread(target=self.fetch_weather_data, args=(city,))
+        thread.start()
+
+    def fetch_weather_data(self, city):
+        data = self.cache.get(city)
+        if data is None:
+            data = get_weather(city)
+            if data is not None:
+                self.cache.set(city, data)
+
+        self.app.after(0, self.update_result_label, data)
+
+    def update_result_label(self, data):
+        self.searching = False
+
         if data is not None:
-            cache.set(city, data)
+            date = data["current"]["last_updated"]
+            temp = data["current"]["temp_c"]
+            condition = data["current"]["condition"]["text"]
+            wind = data["current"]["wind_kph"]
+            cloud_percentage = data["current"]["cloud"]
 
-    app.after(0, update_result_label, data)
+            self.result_label.configure(text=f"""
+            Last updated: {date}
 
-def update_result_label(data):
-    global searching
-    searching = False
+            Temperature: {temp}°C
 
-    if data is not None:
-        date = data["current"]["last_updated"]
-        temp = data["current"]["temp_c"]
-        condition = data["current"]["condition"]["text"]
-        wind = data["current"]["wind_kph"]
-        cloud_percentage = data["current"]["cloud"]
+            Condition: {condition}
 
-        result_label.configure(text=f"""
-        Last updated: {date}
+            Wind: {wind} kph
 
-        Temperature: {temp}°C
+            Cloud coverage: {cloud_percentage}%
+            """)
+        else:
+            self.result_label.configure(text="Something went wrong...")
 
-        Condition: {condition}
+        self.search_button.configure(state="normal")
 
-        Wind: {wind} kph
+    def animate_loading(self, dots=""):
+        if not self.searching:
+            return
 
-        Cloud coverage: {cloud_percentage}%
-        """)
-    else:
-        result_label.configure(text="Something went wrong...")
+        self.result_label.configure(text=f"Loading{dots}")
 
-    search_button.configure(state="normal")
+        if dots == "...":
+            new_dots = ""
+        else:
+            new_dots = dots + "."
 
-def animate_loading(dots = ""):
-    if not searching:
-        return
-
-    result_label.configure(text=f"Loading{dots}")
-
-    if dots == "...":
-        new_dots = ""
-    else:
-        new_dots = dots + "."
-
-    app.after(400, animate_loading, new_dots)
-
-search_button = ctk.CTkButton(app, text="Search", command=search_weather)
-search_button.pack(pady=10)
-
-result_label = ctk.CTkLabel(app, text="", font=("Arial", 16), justify="left")
-result_label.pack(pady=10)
-
-city_entry.bind("<Return>", search_weather)
-app.mainloop()
-
+        self.app.after(400, self.animate_loading, new_dots)
