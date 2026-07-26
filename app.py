@@ -1,16 +1,21 @@
 import threading
+from textwrap import dedent
+
 import customtkinter as ctk
 from cache import WeatherCache
 from request import get_weather
 
 class WeatherApp:
+    WINDOW_SIZE = "700x450"
+    ANIMATION_INTERVAL_MS = 400
+
     def __init__(self):
         self.searching = False
         self.cache = WeatherCache()
 
         self.app = ctk.CTk()
         self.app.title("Weather App")
-        self.app.geometry("700x450")
+        self.app.geometry(self.WINDOW_SIZE)
         self.app.resizable(False, False)
         ctk.set_appearance_mode("dark")
 
@@ -35,9 +40,6 @@ class WeatherApp:
 
         self.city_entry.bind("<Return>", self.search_weather)
 
-    def run(self):
-        self.app.mainloop()
-
     def search_weather(self, event=None):
         if self.search_button.cget("state") == "disabled":
             return
@@ -55,7 +57,7 @@ class WeatherApp:
         self.city_error_label.configure(text="")
 
         self.searching = True
-        self.app.after(400, self.animate_loading, "")
+        self.app.after(self.ANIMATION_INTERVAL_MS, self.animate_loading, "")
 
         thread = threading.Thread(target=self.fetch_weather_data, args=(city,))
         thread.start()
@@ -73,13 +75,21 @@ class WeatherApp:
         self.searching = False
 
         if data is not None:
-            date = data["current"]["last_updated"]
-            temp = data["current"]["temp_c"]
-            condition = data["current"]["condition"]["text"]
-            wind = data["current"]["wind_kph"]
-            cloud_percentage = data["current"]["cloud"]
+            self.result_label.configure(text=self._format_weather_text(data))
+        else:
+            self.result_label.configure(text="Something went wrong...")
 
-            self.result_label.configure(text=f"""
+        self.search_button.configure(state="normal")
+
+    @staticmethod
+    def _format_weather_text(data) -> str:
+        date = data["current"]["last_updated"]
+        temp = data["current"]["temp_c"]
+        condition = data["current"]["condition"]["text"]
+        wind = data["current"]["wind_kph"]
+        cloud_percentage = data["current"]["cloud"]
+
+        return dedent(f"""
             Last updated: {date}
 
             Temperature: {temp}°C
@@ -89,11 +99,7 @@ class WeatherApp:
             Wind: {wind} kph
 
             Cloud coverage: {cloud_percentage}%
-            """)
-        else:
-            self.result_label.configure(text="Something went wrong...")
-
-        self.search_button.configure(state="normal")
+        """).strip()
 
     def animate_loading(self, dots=""):
         if not self.searching:
@@ -106,4 +112,7 @@ class WeatherApp:
         else:
             new_dots = dots + "."
 
-        self.app.after(400, self.animate_loading, new_dots)
+        self.app.after(self.ANIMATION_INTERVAL_MS, self.animate_loading, new_dots)
+
+    def run(self):
+        self.app.mainloop()
